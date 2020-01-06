@@ -1,10 +1,12 @@
-#zhangke-cs's BioTools
+# zhangke-cs's BioTools
 
-##Introduction
+Introduction
+---------------------------
 Stored here are frequently used programs in bioinformatics analysis.
 Unless otherwise stated, all code here is open sourced under the **MIT License**
 
-##PERL Code
+PERL Code
+---------------------------
 1. recursive_find_file.pm  
 Function: Recursively list all files in a directory  
 Return: A array reference  
