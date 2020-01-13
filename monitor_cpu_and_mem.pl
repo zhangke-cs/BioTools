@@ -5,47 +5,31 @@ use IO::File;
 use POSIX qw(strftime);
 use List::Util qw(sum);
 
-=function
-    Chinese
-    将这个脚本放在后台可以记录一段时间的CPU使用率和MEM使用率
-=cut
-
-=cpu_monitor
-    Chinese
-    CPU计算间隔是1秒钟
-=cut
+#=function
+#    Chinese
+#    将这个脚本放在后台可以记录一段时间的CPU使用率和MEM使用率
+#=cut
+#
+#=cpu_monitor
+#    Chinese
+#    CPU计算间隔是1秒钟
+#=cut
 
 while (1){
-    my $cpu_strings = CheckCPU();
-    my @mem_strings = CheckMem();
+    my $cpu_strings = get_cpu_usage();
+    my @mem_strings = get_mem_info();
     my $output_strings = 'CPU:'.$cpu_strings."\tMem:".$mem_strings[1].' '.$mem_strings[0];
-    echo_info($output_strings);
+    my $local_time = strftime "%Y%m%d-%H:%M:%S", localtime;
+    print "[$local_time]: <Info> $output_strings\n";
 }
 
-sub cpu_number {
-    my $cpuinfo_handle = new IO::File "/proc/cpuinfo" or die "$!";
-    my @cpuinfo = <$cpuinfo_handle>;
-    @cpuinfo = grep { $_ =~ /^processor\s+:\s+\d+/ } @cpuinfo;
-    my $cpu_number = scalar @cpuinfo;
-    $cpuinfo_handle -> close;
-    return $cpu_number;
-}
-
-sub CheckCPU {
-    my $stat_handle = new IO::File "/proc/stat" or die "$!";
-    my $stat_one_line = <$stat_handle>;
-    chomp $stat_handle;
-    my @stat_one_line = split /\s+/,$stat_one_line;
-    $stat_handle -> close;
-    my $name = shift @stat_one_line;
+sub get_cpu_usage {
+    my $stat_one_line = `head -n1 /proc/stat` or die "$!";
+    my @stat_one_line = $stat_one_line =~ /(\d+)/g;
     my $total_cpu_time = sum(@stat_one_line);
     sleep 1;
-    $stat_handle = new IO::File "/proc/stat" or die "$!";
-    my $stat_two_line = <$stat_handle>;
-    chomp $stat_handle;
-    my @stat_two_line = split /\s+/,$stat_two_line;
-    $stat_handle -> close;
-    $name = shift @stat_two_line;
+    my $stat_two_line = `head -n1 /proc/stat` or die "$!";
+    my @stat_two_line = $stat_two_line =~ /(\d+)/g;
     my $total_cpu_time_2 = sum(@stat_two_line);
     my $total_idle = $stat_two_line[3] - $stat_one_line[3];
     my $total_usage = $total_cpu_time_2 - $total_cpu_time;
@@ -53,7 +37,7 @@ sub CheckCPU {
     return $total;
 }
 
-sub CheckMem {
+sub get_mem_info {
     #MemTotal = MemFree +[Slab+ VmallocUsed + PageTables + KernelStack + HardwareCorrupted + Bounce + X]+[Cached + AnonPages + Buffers + (HugePages_Total * Hugepagesize)])
     my $meminfo_file = '/proc/meminfo';
     if ( -e $meminfo_file ){
@@ -72,7 +56,7 @@ sub CheckMem {
             }elsif ($available_mem_units =~ /gb/i) {
                 $available_mem_size = $available_mem_value * 1024 * 1024;
             }else{
-                return "one -2";
+                return "-2";
             }
             $handle_meminfo -> close;
             return $available_mem_units,$available_mem_size;
@@ -108,10 +92,4 @@ sub CheckMem {
     }else{
         return -1;
     }
-}
-
-sub echo_info {
-    my $strings = shift;
-    my $local_time = strftime "%Y%m%d-%H:%M:%S", localtime;
-    print "[$local_time]: <Info> $strings\n";
 }
