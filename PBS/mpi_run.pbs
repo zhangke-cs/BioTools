@@ -1,0 +1,13 @@
+#!/bin/bash
+#PBS -N example
+#PBS -l nodes=10:ppn=20
+#PBS -o LOGFILE
+#PBS -e ERRFILE
+
+#在PBS脚本中，强制mpirun使用PBS分配的节点
+#PBS_NODEFILE 是一个记录了PBS分配的全部CPU的节点名称
+if [ ${PBS_NODEFILE} ]; then
+    HOSTS=$(echo $PBS_NODEFILE | perl -ne 'chomp; open IN,"$_";@line = <IN>;chomp @line;@line = grep {++$c{$_} < 2} @line; @line = sort @line; print join(",",@line)')
+fi
+
+mpirun -np 400 -launcher rsh -hosts ${HOSTS}
