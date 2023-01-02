@@ -45,47 +45,58 @@ color_group <- c('#4253ff', '#ff4308')
 #4 read data
 #OTU_ID phylum        detail
 #OTU_1  Proteobacteria p__Proteobacteria;c__Alphaproteobacteria;o__Sphingomonadales;f__Sphingomonadaceae 
-taxonomy <- read.table(opt$taxonomy_file, sep = '\t', stringsAsFactors = F)
-tax_phylum <- unique(taxonomy$phylum)
-taxonomy$phylum <- factor(taxonomy$phylum, levels = tax_phylum)
-all_otu <- taxonomy$OTU_ID
-taxonomy$OTU_ID <- factor(taxonomy$OTU_ID, levels = all_otu)
+taxonomy_info <- read.table(opt$taxonomy_file, sep = '\t', stringsAsFactors = F, header = T, row.names = 1)
+#tax_phylum <- unique(taxonomy$phylum)
+#taxonomy$phylum <- factor(taxonomy$phylum, levels = tax_phylum)
+taxonomy_info$phylum <- as.factor(taxonomy_info$phylum)
+#all_otu <- taxonomy$OTU_ID
+#taxonomy$OTU_ID <- factor(taxonomy$OTU_ID, levels = all_otu)
 
 #sample_ID group_ID
 #N1        N
-group <- read.table(opt$group_file, sep = '\t', stringsAsFactors = F)
-all_group <- unique(group$group_ID)
-group$group_ID <- factor(group$group_ID, levels = all_group)
-all_sample <- group$sample_ID
+group_info <- read.table(opt$group_file, sep = '\t', stringsAsFactors = F, header = T)
+group_info$group_ID <- as.factor(group_info$group_ID)
+
+#all_group <- unique(group_info$group_ID)  #all_group 删除
+#group_info$group_ID <- factor(group_info$group_ID, levels = all_group)
+
+if (length(unique(group_info$sample_ID)) < length(group_info$sample_ID)){
+    stop(sprintf("Sample ID is duplicate! Exit."))
+}
+#all_sample <- group_info$sample_ID
 
 #OTU_ID N1  N2  N3  C1   C2   C3
 #OTU_21 235 671 989 1904 1003 637
-otu_table <- read.table(opt$otu_file, sep = '\t')
-otu_table <- merge(taxonomy, otu_table, by = 'OTU_ID')
-otu_table <- otu_table[order(otu_table$phylum, otu_table$OTU_ID), ]
-rownames(otu_table) <- otu_table$OTU_ID
-otu_table <- otu_table[all_sample]
+otu_table <- read.table(opt$otu_file, sep = '\t', stringsAsFactors = F, header = T, row.names = 1)
+otu_taxonomy <- merge(taxonomy_info, otu_table, by = 'row.names')
+otu_taxonomy <- otu_taxonomy[order(otu_taxonomy$phylum, otu_taxonomy$OTU_ID), ]
+#rownames(otu_table) <- otu_table$OTU_ID
+#otu_table <- otu_table[all_sample]
 
 #5 
 ##生成绘图文件
 #circlize 外圈属性数据
-all_ID <- c(all_otu, all_sample)
-accum_otu <- rowSums(otu_table)
-accum_sample <- colSums(otu_table)
+#all_ID <- c(all_otu, all_sample)
+all_ID <- c(otu_taxonomy$Row.names, group_info$sample_ID)
+#accum_otu <- rowSums(otu_table)
+accum_otu <- rowSums(otu_taxonomy[group_info$sample_ID])
+accum_sample <- colSums(otu_taxonomy[group_info$sample_ID])
 all_ID_xlim <- cbind(rep(0, length(all_ID)),data.frame(c(accum_otu, accum_sample)))
 
 #circlize 内圈连线数据
-otu_table$otu_ID <- all_otu
-plot_data <- melt(otu_table, id = 'otu_ID') 
-colnames(plot_data)[2] <- 'sample_ID'
-plot_data$otu_ID <- factor(plot_data$otu_ID, levels = all_otu)
-plot_data$sample_ID <- factor(plot_data$sample_ID, levels = all_sample)
+#otu_table$otu_ID <- all_otu
+#plot_data <- melt(otu_table, id = 'otu_ID')
+plot_data <- melt(otu_taxonomy[c('Row.names', group_info$sample_ID)], id = 'Row.names')
+colnames(plot_data)[1:2] <- c('otu_ID', 'sample_ID')
+
+plot_data$otu_ID <- factor(plot_data$otu_ID, levels = otu_taxonomy$Row.names)
+plot_data$sample_ID <- factor(plot_data$sample_ID, levels = group_info$sample_ID)
 plot_data <- plot_data[order(plot_data$otu_ID, plot_data$sample_ID), ]
 plot_data <- plot_data[c(2, 1, 3, 3)]
 
 #颜色设置
-names(color_otu) <- all_otu
-names(color_sample) <- all_sample
+names(color_otu) <- otu_taxonomy$Row.names
+names(color_sample) <- group_info$sample_ID
 
 ####circlize 绘图
 #!!! 这里换用ggsave保存图像
